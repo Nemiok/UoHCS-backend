@@ -26,8 +26,9 @@ let numbers = [
   }
 ]
 
-app.use(cors())
 app.use(express.json())
+app.use(cors())
+app.use(express.static('build'))
 
 morgan.token('content', function (req, res) { return JSON.stringify(req.body) })
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :content'))
@@ -36,7 +37,7 @@ app.get('/', (request, response) => {
   response.send('<h1>Hello World!</h1>')
 })
 
-const PORT = 3001
+const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
 })
@@ -101,6 +102,5 @@ app.post('/api/numbers', (request, response) => {
   }
 
   numbers = numbers.concat(number)
-
   response.json(number)
 })
