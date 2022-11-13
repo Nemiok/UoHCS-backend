@@ -23,7 +23,8 @@
   },
   "scripts": {
     "server": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "lint": "eslint ."
   },
   "eslintConfig": {
     "extends": [
@@ -44,6 +45,7 @@
     ]
   },
   "devDependencies": {
+    "eslint": "^8.27.0",
     "nodemon": "^2.0.20"
   }
 }

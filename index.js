@@ -14,7 +14,7 @@ const errorHandler = (error, request, response, next) => {
     return response.status(400).send({ error: 'malformatted id' })
   }
 
-  else if (error.name = 'ValidationError') {
+  else if (error.name === 'ValidationError') {
     return response.status(400).send(error.message)
   }
   else {
@@ -22,6 +22,10 @@ const errorHandler = (error, request, response, next) => {
     return response.status(400).send({ error: 'wrong' })
   }
 }
+const PORT = process.env.PORT
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`)
+})
 
 app.use(express.static('build'))
 app.use(express.json())
@@ -31,11 +35,6 @@ app.use(morgan(':method :url :status :res[content-length] - :response-time ms :c
 
 app.get('/', (request, response) => {
   response.send('<h1>Hello World!</h1>')
-})
-
-const PORT = process.env.PORT
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
 })
 
 app.get('/api/persons', (request, response) => {
