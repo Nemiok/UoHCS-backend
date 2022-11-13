@@ -1,35 +1,31 @@
+require('dotenv').config()
 const express = require('express')
 const app = express()
 const morgan = require('morgan')
 const cors = require('cors')
+const Person = require('./models/person')
+const mongoose = require('mongoose')
+const url = process.env.MONGODB_URI
 
-let numbers = [
-  {
-    "id": 1,
-    "name": "Arto Hellas",
-    "number": "040-123456"
-  },
-  {
-    "id": 2,
-    "name": "Ada Lovelace",
-    "number": "39-44-5323523"
-  },
-  {
-    "id": 3,
-    "name": "Dan Abramov",
-    "number": "12-43-234345"
-  },
-  {
-    "id": 4,
-    "name": "Mary Poppendieck",
-    "number": "39-23-6423122"
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message)
+
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' })
   }
-]
 
+  else if (error.name = 'ValidationError') {
+    return response.status(400).send(error.message)
+  }
+  else {
+    next(error)
+    return response.status(400).send({ error: 'wrong' })
+  }
+}
+
+app.use(express.static('build'))
 app.use(express.json())
 app.use(cors())
-app.use(express.static('build'))
-
 morgan.token('content', function (req, res) { return JSON.stringify(req.body) })
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :content'))
 
@@ -37,45 +33,81 @@ app.get('/', (request, response) => {
   response.send('<h1>Hello World!</h1>')
 })
 
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
 })
 
-app.get('/api/numbers', (request, response) => {
-  response.json(numbers)
+app.get('/api/persons', (request, response) => {
+
+  mongoose.connect(url)
+    .then(() => {
+      Person.find({})
+        .then(persons => {
+          response.json(persons)
+        })
+    })
 })
 
 app.get('/info', (request, response) => {
-  response.send(`<p>Phonebook has info for ${Object.keys(numbers).length} people</p>
-  <div>${new Date()}</div>`)
+  mongoose.connect(url)
+    .then(() => {
+      Person.find({})
+        .then(persons => {
+          console.log(persons)
+          numberOfPersons = persons.length
+          response.send(`<p>Phonebook has info for ${numberOfPersons} people</p>
+          <div>${new Date()}</div>`)
+        })
+    })
 })
 
-app.get('/api/numbers/:id', (request, response) => {
-  const id = +request.params.id
-  const number = numbers.find(number => number.id === id)
-
-  if (number) {
-    response.json(number)
-  } else {
-    response.status(404).end()
-  }
+app.get('/api/persons/:id', (request, response, next) => {
+  mongoose.connect(url)
+    .then(() => {
+      Person.findById(request.params.id)
+        .then(person => {
+          if (person) {
+            response.json(person)
+          } else {
+            response.status(404).end()
+          }
+        })
+        .catch(err => next(err))
+    })
 })
 
-app.delete('/api/numbers/:id', (request, response) => {
-  const id = Number(request.params.id)
-  numbers = numbers.filter(number => number.id !== id)
-
-  response.status(204).end()
+app.put('/api/persons/:id', (req, res, next) => {
+  mongoose.connect(url)
+    .then(() => {
+      const body = req.body
+      const person = {
+        name: body.name,
+        number: body.number,
+      }
+      Person.findByIdAndUpdate(req.params.id, person, { new: true, runValidators: true, context: 'query' })
+        .then(updatedPerson => {
+          res.json(updatedPerson)
+        })
+        .catch(error => next(error))
+    })
+    .catch(err => next(err))
 })
 
-const generateId = () => {
-  const num = Math.random()
-  return Math.trunc(num * 10000000)
-}
+app.delete('/api/persons/:id', (request, response, next) => {
+  mongoose.connect(url)
+    .then(() => {
+      Person.findByIdAndRemove(request.params.id)
+        .then((result) => {
+          response.status(204).end()
+        })
+        .catch(err => next(err))
+    })
+})
 
-app.post('/api/numbers', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
   const body = request.body
+  console.log(request.body)
 
   if (!body.name) {
     return response.status(400).json({
@@ -89,18 +121,15 @@ app.post('/api/numbers', (request, response) => {
     })
   }
 
-  if (numbers.findIndex(number => number.name === body.name) !== -1) {
-    return response.status(400).json({
-      error: 'name must be unique'
+  else {
+    const person = new Person({
+      name: body.name,
+      number: body.number,
     })
-  }
 
-  const number = {
-    name: body.name,
-    number: body.number,
-    id: generateId(),
+    person.save()
+      .then((savedPerson) => response.json(savedPerson))
+      .catch(err => next(err))
   }
-
-  numbers = numbers.concat(number)
-  response.json(number)
 })
+app.use(errorHandler)
